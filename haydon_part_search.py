@@ -1,4 +1,9 @@
 
+import zipfile
+import os
+
+# Corrected Streamlit app code
+script_content = """
 import pandas as pd
 import re
 import streamlit as st
@@ -14,7 +19,7 @@ def load_data():
     df["Normalized Vendor Part"] = df["Vendor Part #"].apply(normalize)
     return df
 
-# Normalization function: strips spaces, dashes, asterisks, etc.
+# Normalization function
 def normalize(part):
     if pd.isna(part):
         return ""
@@ -28,7 +33,7 @@ def search_parts(df, query):
         df["Normalized Vendor Part"].str.contains(normalized_query, na=False)
     ]
 
-# Function to fetch image from Google search (basic preview only)
+# Fetch image from Google (unofficial basic fallback)
 def fetch_image(query):
     headers = {"User-Agent": "Mozilla/5.0"}
     search_url = f"https://www.google.com/search?tbm=isch&q={query}"
@@ -36,7 +41,7 @@ def fetch_image(query):
         response = requests.get(search_url, headers=headers)
         soup = BeautifulSoup(response.text, "html.parser")
         img_tag = soup.find("img")
-        if img_tag and img_tag.get("src"):
+        if img_tag and img_tag.get("src") and img_tag["src"].startswith("http"):
             return img_tag["src"]
     except Exception as e:
         st.error(f"Image lookup failed: {e}")
@@ -65,8 +70,41 @@ if query:
             st.subheader("Image Preview")
             image_url = fetch_image(image_query)
             if image_url:
-                st.image(image_url, caption=image_query, use_column_width=True)
+                st.image(image_url, caption=image_query, use_container_width=True)
             else:
-                st.info("No image found for the selected part.")
+                st.info("No valid image found for the selected part.")
     else:
         st.warning("No matches found.")
+"""
+
+# Updated requirements
+requirements_content = "streamlit\npandas\nopenpyxl\nrequests\nbeautifulsoup4\n"
+
+# Set up paths
+base_dir = "/mnt/data/haydon_app_updated"
+os.makedirs(base_dir, exist_ok=True)
+
+# Write files
+script_path = os.path.join(base_dir, "haydon_part_search.py")
+requirements_path = os.path.join(base_dir, "requirements.txt")
+excel_src = "/mnt/data/Updated File - 3-24.xlsx"
+excel_dest = os.path.join(base_dir, "Updated File - 3-24.xlsx")
+
+with open(script_path, "w") as f:
+    f.write(script_content)
+
+with open(requirements_path, "w") as f:
+    f.write(requirements_content)
+
+# Copy Excel file
+import shutil
+shutil.copyfile(excel_src, excel_dest)
+
+# Create the ZIP archive
+zip_path = "/mnt/data/haydon_cross_ref_app_updated.zip"
+with zipfile.ZipFile(zip_path, 'w') as zipf:
+    zipf.write(script_path, arcname="haydon_part_search.py")
+    zipf.write(requirements_path, arcname="requirements.txt")
+    zipf.write(excel_dest, arcname="Updated File - 3-24.xlsx")
+
+zip_path
