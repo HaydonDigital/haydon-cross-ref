@@ -14,13 +14,13 @@ def load_data():
     df["Normalized Vendor Part"] = df["Vendor Part #"].apply(normalize)
     return df
 
-# Normalization function
+# Normalize part numbers by removing non-alphanumeric characters
 def normalize(part):
     if pd.isna(part):
         return ""
     return re.sub(r"[^A-Za-z0-9]", "", str(part)).lower()
 
-# Search function
+# Search for matches in either Haydon or Vendor part #
 def search_parts(df, query):
     normalized_query = normalize(query)
     return df[
@@ -28,7 +28,7 @@ def search_parts(df, query):
         df["Normalized Vendor Part"].str.contains(normalized_query, na=False)
     ]
 
-# Fetch image from Google (unofficial basic fallback)
+# Fetch image from Google Images (basic scraping fallback)
 def fetch_image(query):
     headers = {"User-Agent": "Mozilla/5.0"}
     search_url = f"https://www.google.com/search?tbm=isch&q={query}"
@@ -42,7 +42,7 @@ def fetch_image(query):
         st.error(f"Image lookup failed: {e}")
     return None
 
-# Streamlit app
+# Streamlit UI
 st.title("Haydon Cross-Reference Search")
 
 query = st.text_input("Enter part number (Haydon or Vendor):")
@@ -55,7 +55,7 @@ if query:
         st.write(f"Found {len(results)} matching entries:")
         st.dataframe(results.drop(columns=["Normalized Haydon Part", "Normalized Vendor Part"]))
 
-        # Try image preview for first matching competitor part
+        # Try showing image preview
         first_row = results.iloc[0]
         competitor_name = first_row["Vendor"]
         competitor_part = first_row["Vendor Part #"]
@@ -67,6 +67,6 @@ if query:
             if image_url:
                 st.image(image_url, caption=image_query, use_container_width=True)
             else:
-                st.info("No valid image found for the selected part.")
+                st.info("No valid image found.")
     else:
         st.warning("No matches found.")
