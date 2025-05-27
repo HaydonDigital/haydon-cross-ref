@@ -1,4 +1,4 @@
-
+updated_script_with_haydon_image = """
 import pandas as pd
 import re
 import streamlit as st
@@ -20,7 +20,7 @@ def normalize(part):
         return ""
     return re.sub(r"[^A-Za-z0-9]", "", str(part)).lower()
 
-# Search for matches in either Haydon or Vendor part #
+# Search across Haydon and Vendor parts
 def search_parts(df, query):
     normalized_query = normalize(query)
     return df[
@@ -28,16 +28,28 @@ def search_parts(df, query):
         df["Normalized Vendor Part"].str.contains(normalized_query, na=False)
     ]
 
-# Fetch image from Google Images (basic scraping fallback)
-def fetch_image(query):
+# Extract core Haydon part for image URL
+def extract_core_haydon_part(part_number):
+    if pd.isna(part_number):
+        return None
+    match = re.match(r"([A-Z]+-[0-9]+)", str(part_number), re.IGNORECASE)
+    return match.group(1).lower() if match else None
+
+# Fetch product image from HaydonCorp product page
+def fetch_haydon_image(haydon_part):
+    part_code = extract_core_haydon_part(haydon_part)
+    if not part_code:
+        return None
+    url = f"https://haydoncorp.com/catalog/product/{part_code}"
     headers = {"User-Agent": "Mozilla/5.0"}
-    search_url = f"https://www.google.com/search?tbm=isch&q={query}"
     try:
-        response = requests.get(search_url, headers=headers)
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code != 200:
+            return None
         soup = BeautifulSoup(response.text, "html.parser")
-        img_tag = soup.find("img")
-        if img_tag and img_tag.get("src") and img_tag["src"].startswith("http"):
-            return img_tag["src"]
+        image_tag = soup.find("img", {"class": "product-gallery__img"})
+        if image_tag and image_tag.get("src"):
+            return image_tag["src"]
     except Exception as e:
         st.error(f"Image lookup failed: {e}")
     return None
@@ -55,18 +67,41 @@ if query:
         st.write(f"Found {len(results)} matching entries:")
         st.dataframe(results.drop(columns=["Normalized Haydon Part", "Normalized Vendor Part"]))
 
-        # Try showing image preview
         first_row = results.iloc[0]
-        competitor_name = first_row["Vendor"]
-        competitor_part = first_row["Vendor Part #"]
-        image_query = f"{competitor_name} {competitor_part}" if pd.notna(competitor_name) and pd.notna(competitor_part) else None
+        haydon_part = first_row["Haydon Part #"]
 
-        if image_query:
-            st.subheader("Image Preview")
-            image_url = fetch_image(image_query)
-            if image_url:
-                st.image(image_url, caption=image_query, use_container_width=True)
-            else:
-                st.info("No valid image found.")
+        st.subheader("Product Image (Haydon)")
+        haydon_img_url = fetch_haydon_image(haydon_part)
+        if haydon_img_url:
+            st.image(haydon_img_url, caption=haydon_part, use_container_width=True)
+        else:
+            st.info("No image found for this Haydon part.")
     else:
         st.warning("No matches found.")
+"""
+
+# Rewrite the .py file and zip it
+import os, shutil, zipfile
+
+base_dir = "/mnt/data/haydon_final_image_app"
+os.makedirs(base_dir, exist_ok=True)
+
+script_path = os.path.join(base_dir, "haydon_part_search.py")
+with open(script_path, "w") as f:
+    f.write(updated_script_with_haydon_image)
+
+requirements_path = os.path.join(base_dir, "requirements.txt")
+with open(requirements_path, "w") as f:
+    f.write("streamlit\npandas\nopenpyxl\nrequests\nbeautifulsoup4\n")
+
+excel_src = "/mnt/data/Updated File - 3-24.xlsx"
+excel_dest = os.path.join(base_dir, "Updated File - 3-24.xlsx")
+shutil.copyfile(excel_src, excel_dest)
+
+zip_path = "/mnt/data/haydon_cross_ref_with_images.zip"
+with zipfile.ZipFile(zip_path, 'w') as zipf:
+    zipf.write(script_path, arcname="haydon_part_search.py")
+    zipf.write(requirements_path, arcname="requirements.txt")
+    zipf.write(excel_dest, arcname="Updated File - 3-24.xlsx")
+
+zip_path
