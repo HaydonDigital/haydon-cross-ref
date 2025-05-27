@@ -1,10 +1,12 @@
 import pandas as pd
 import re
 import streamlit as st
+import os
 
 # Load and clean data
 def load_data():
-    df = pd.read_excel("Updated File - 3-24.xlsx", sheet_name="Export")
+    file_path = os.path.join(os.path.dirname(__file__), "Updated File - 3-24.xlsx")
+    df = pd.read_excel(file_path, sheet_name="Export")
     df["Normalized Haydon Part"] = df["Haydon Part #"].apply(normalize)
     return df
 
