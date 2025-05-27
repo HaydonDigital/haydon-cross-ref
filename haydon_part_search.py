@@ -9,6 +9,7 @@ def load_data():
     file_path = os.path.join(os.path.dirname(__file__), "Updated File - 3-24.xlsx")
     df = pd.read_excel(file_path, sheet_name="Export", engine="openpyxl")
     df["Normalized Haydon Part"] = df["Haydon Part #"].apply(normalize)
+    df["Normalized Vendor Part"] = df["Vendor Part #"].apply(normalize)
     return df
 
 # Normalization function: strips spaces, dashes, asterisks, etc.
@@ -20,12 +21,15 @@ def normalize(part):
 # Search function
 def search_parts(df, query):
     normalized_query = normalize(query)
-    return df[df["Normalized Haydon Part"].str.contains(normalized_query, na=False)]
+    return df[
+        df["Normalized Haydon Part"].str.contains(normalized_query, na=False) |
+        df["Normalized Vendor Part"].str.contains(normalized_query, na=False)
+    ]
 
 # Streamlit app
 st.title("Haydon Cross-Reference Search")
 
-query = st.text_input("Enter Haydon part number (or partial):")
+query = st.text_input("Enter part number (Haydon or Vendor):")
 
 if query:
     df = load_data()
@@ -33,6 +37,6 @@ if query:
 
     if not results.empty:
         st.write(f"Found {len(results)} matching entries:")
-        st.dataframe(results.drop(columns=["Normalized Haydon Part"]))
+        st.dataframe(results.drop(columns=["Normalized Haydon Part", "Normalized Vendor Part"]))
     else:
         st.warning("No matches found.")
