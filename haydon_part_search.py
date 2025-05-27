@@ -6,7 +6,7 @@ import os
 # Load and clean data
 def load_data():
     file_path = os.path.join(os.path.dirname(__file__), "Updated File - 3-24.xlsx")
-    df = pd.read_excel(file_path, sheet_name="Export")
+    df = pd.read_excel(file_path, sheet_name="Export", engine="openpyxl")
     df["Normalized Haydon Part"] = df["Haydon Part #"].apply(normalize)
     return df
 
