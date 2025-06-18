@@ -1,4 +1,3 @@
-
 import pandas as pd
 import re
 import streamlit as st
@@ -22,11 +21,21 @@ def normalize(part):
         return ""
     return re.sub(r"[^A-Za-z0-9]", "", str(part)).lower()
 
+# Generate match candidates including series fallback (e.g., TSN-802 → TSN-800)
 def get_haydon_candidates(part):
     part = str(part).upper()
     tokens = re.split(r"[ \-X()]+", part)
+
+    # Yield progressively truncated tokens
     for i in range(len(tokens), 0, -1):
         yield "-".join(tokens[:i])
+
+    # Attempt generalization: numeric suffix rounding (e.g., TSN802 → TSN800)
+    match = re.match(r"([A-Z\-]+)(\d{3,})$", part.replace("-", ""))
+    if match:
+        prefix, number = match.groups()
+        generalized = f"{prefix}{number[:2]}0"
+        yield generalized
 
 def search_parts(df, query):
     norm_query = normalize(query)
@@ -57,18 +66,25 @@ if query:
             st.markdown("### Haydon Product Preview")
             match_found = False
             candidates = [haydon_part] + list(get_haydon_candidates(haydon_part))
+
             for candidate in candidates:
-                matched_ref = image_ref_df[image_ref_df["Name"].str.upper() == candidate]
+                matched_ref = image_ref_df[image_ref_df["Name"].str.upper().str.startswith(candidate)]
                 if not matched_ref.empty:
                     ref_row = matched_ref.iloc[0]
-                    image_url = ref_row["Cover Image"]
-                    submittal_url = ref_row["Files"]
+                    image_url = ref_row.get("Cover Image")
+                    submittal_url = ref_row.get("Files")
+                    display_name = ref_row.get("Name")
+
                     if pd.notna(image_url):
-                        st.image(image_url, caption=ref_row["Name"], use_container_width=True)
+                        st.image(image_url, caption=display_name, use_container_width=True)
                     if pd.notna(submittal_url):
-                        st.markdown(f"[📄 View Submittal]({submittal_url})", unsafe_allow_html=True)
+                        st.markdown(f"[📄 View Submittal for {display_name}]({submittal_url})", unsafe_allow_html=True)
+
+                    if display_name != haydon_part:
+                        st.info(f"Showing closest match: {display_name} (for {haydon_part})")
                     match_found = True
                     break
+
             if not match_found:
                 st.warning("No product preview or submittal found for this Haydon part.")
     else:
