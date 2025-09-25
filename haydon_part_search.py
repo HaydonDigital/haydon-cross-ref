@@ -88,4 +88,8 @@ if query:
             if not match_found:
                 st.warning("No product preview or submittal found for this Haydon part.")
     else:
-        st.warning("No matches found.")
+        st.error(
+            "Unable to find the cross reference you're looking for? "
+            "Please send the Haydon and customer or competitive part numbers to "
+            "[marketing@haydoncorp.com](mailto:marketing@haydoncorp.com)."
+        )
